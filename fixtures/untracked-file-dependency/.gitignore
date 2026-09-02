@@ -1,0 +1,4 @@
+secret.local
+__pycache__/
+.pytest_cache/
+.cleanroom-deps/

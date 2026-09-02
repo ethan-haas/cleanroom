@@ -1,0 +1,4 @@
+[cleanroom]
+image = "python:3.12-slim"
+install = "pip install --target=.cleanroom-deps -r requirements.txt"
+test = "python -m pytest -q"

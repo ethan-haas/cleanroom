@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cleanroom"
+version = "0.1.0"
+description = "Prove your tests pass on a fresh clone of your repository, in a container matching your CI, before you push."
+readme = "README.md"
+# tomllib is stdlib from 3.11; the tool reads .cleanroom.toml with it.
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Ethan Haas", email = "ethanzhaas@gmail.com" }]
+dependencies = []
+
+[project.scripts]
+cleanroom = "cleanroom.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

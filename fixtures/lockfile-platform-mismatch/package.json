@@ -1,0 +1,11 @@
+{
+  "name": "platform-mismatch-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "darwin-only-fixture-dep": "1.0.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  }
+}

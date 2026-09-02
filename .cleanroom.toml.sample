@@ -1,0 +1,21 @@
+# Copy to .cleanroom.toml at the repo root. Every key is optional; anything
+# left out is inferred from the repo's own manifest and declared CI
+# (.github/workflows/*.yml). See README.md for the inference rules.
+
+[cleanroom]
+# Container image matching your CI (language version included).
+# image = "python:3.12-slim"
+
+# Install command -- must use only the repo's own declared manifest.
+# install = "pip install --target=.cleanroom-deps -r requirements.txt"
+
+# Test command -- whatever your CI already runs.
+# test = "python -m pytest -q"
+
+# In-container path the repo is cloned to. Deliberately shallow by default
+# so a `parents[N]` path-depth assumption fails here, not in CI.
+# clone_root = "/r"
+
+# uid:gid the install/test commands run as. Root only when you explicitly
+# pass --root on the command line.
+# non_root_uid = "1000:1000"

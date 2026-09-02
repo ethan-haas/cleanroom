@@ -1,0 +1,4 @@
+[cleanroom]
+image = "node:20-slim"
+install = "npm ci"
+test = "npm test"

@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    # ubuntu-latest ships a working Docker daemon, so the container-backed
+    # gates below actually run here. They are the ones that matter: on a
+    # machine without a runtime they skip, and a suite that skips its own
+    # subject proves nothing.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+      - name: Docker must really be available to this runner
+        run: |
+          docker info > /dev/null
+          echo "container runtime present: $(docker --version)"
+
+      - name: Tests (pinned totals, zero skips)
+        run: |
+          python -m pytest tests/ -q --junitxml=results.xml
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          s = ET.parse("results.xml").getroot()
+          s = s.find("testsuite") if s.tag == "testsuites" else s
+          got = {k: int(s.get(k, 0)) for k in ("tests", "failures", "errors", "skipped")}
+          print(got)
+          # Pinned, and skipped must be 0. Every container-backed gate is
+          # skipped when no runtime is present, so an unpinned suite would go
+          # green here having tested none of this tool's actual subject.
+          assert got == {"tests": 83, "failures": 0, "errors": 0, "skipped": 0}, got
+          print("pinned totals match, no skips")
+          PY
+
+      - name: Dogfood - cleanroom proves its own repo works from a clean clone
+        run: |
+          # python:3.12, not -slim: this suite materializes its fixtures as
+          # throwaway git repositories, and the slim image ships no git. That
+          # is exactly the class of thing this tool exists to surface, found
+          # by pointing it at itself -- declare the image your CI really uses.
+          cat > .cleanroom.toml <<'TOML'
+          [cleanroom]
+          image = "python:3.12"
+          install = "pip install --target=.cleanroom-deps pytest"
+          test = "PYTHONPATH=.cleanroom-deps:src python -m pytest tests/ -q"
+          TOML
+          python -m cleanroom --repo . --json | tee dogfood.json
+          python - <<'PY'
+          import json, sys
+          r = json.load(open("dogfood.json"))
+          bad = [s for s in r["steps"] if s["status"] != "pass"]
+          assert not bad, bad
+          assert r["exit_code"] == 0, r
+          print("dogfood: tracked-only clean clone installs and runs")
+          PY
+          rm -f .cleanroom.toml dogfood.json
+
+      - name: No container runtime must never read as pass
+        run: |
+          # Point the client at a dead endpoint so the runtime is genuinely
+          # unreachable, and assert the honest degraded contract rather than
+          # trusting that it holds.
+          set +e
+          DOCKER_HOST=tcp://127.0.0.1:1 python -m cleanroom --repo . --json > noruntime.json
+          code=$?
+          set -e
+          test "$code" != "0" || { echo "absent runtime must exit non-zero"; exit 1; }
+          python - <<'PY'
+          import json
+          r = json.load(open("noruntime.json"))
+          statuses = {s["status"] for s in r["steps"]}
+          assert "pass" not in statuses, r
+          assert statuses == {"not-run-because-no-container-runtime"}, r
+          print("absent runtime reported honestly:", statuses)
+          PY
+          rm -f noruntime.json
